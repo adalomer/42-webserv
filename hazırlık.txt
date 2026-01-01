@@ -7,45 +7,44 @@ Dinleme: Belirli bir port'ta (örn: 8080) gelen bağlantıları bekler
 Yanıt Üretme: İstenen dosyayı bulur veya dinamik içerik üretir
 Yanıt Gönderme: HTTP formatında client'a geri gönderir
 
-Modüler Yapı (3 Kişilik Ekip İçin)
-Kişi 1: Network & Connection Manager
-Sorumluluk: Ağ bağlantılarını yönetmek
-Yapacakları:
+👤 Kişi 1: Network Manager + Config Parser (Core)
+Webserver projesinde config parsing (iç içe location blokları, server name eşleştirme vb.) oldukça zordur.
 
-Socket oluşturma ve dinleme
-Client bağlantılarını kabul etme
-Çoklu bağlantı yönetimi (threading/async)
-Bağlantı kapatma
+Görevleri:
 
-Temel Mantık:
-Socket oluştur → Port'a bağla → Dinlemeye başla → 
-Her client için: Bağlantıyı kabul et → Request Handler'a ilet
+Socket yönetimi (Multiplexing: poll/epoll).
 
-Kişi 2: HTTP Request/Response Handler
-Sorumluluk: HTTP protokolünü anlamak ve uygulamak
-Yapacakları:
+Non-blocking I/O yönetimi.
 
-HTTP request parsing (GET, POST, headers)
-HTTP response oluşturma (status codes, headers)
-MIME type belirleme (.html, .css, .jpg)
-HTTP metodlarını destekleme
+.conf dosyasının parse edilmesi ve veri yapısına dönüştürülmesi.
 
-Temel Mantık:
-Raw veri al → 
-Parse et (method, path, headers) → 
-İsteği yapılandır → 
-Response oluştur (status + headers + body) → 
-Raw format'a çevir
+Server'ın başlatılması ve ana döngü.
 
-Kişi 3: Resource Manager & Router
-Sorumluluk: Dosya sistemi ve içerik yönetimi
-Yapacakları:
+👤 Kişi 2: Request Parser + CGI Executor
+Sadece "Request" kısmına odaklanmalı, Response üretme işini Kişi 3'e devretmeli. Buna ek olarak CGI çalıştırma (fork/execve/pipe) mantığını kurmalı.
 
-Static dosya servisi (HTML, CSS, JS, resimler)
-Dosya yolu güvenliği (directory traversal koruması)
-404, 403 gibi hata sayfaları
-Routing mantığı (/about → about.html)
+Görevleri:
 
+Gelen raw veriyi anlamlandırma (Request Parsing).
+
+Chunked request decoding (Bu çok önemli ve zordur).
+
+CGI Scriptlerini çalıştırma (PHP, Python scriptlerini çalıştırma mantığı).
+
+Request validation (İstek geçerli mi, boyutu sınırı aşıyor mu?).
+
+👤 Kişi 3: Response Builder + Resource Manager
+Dosya sistemini yönetmenin yanı sıra, Kişi 2'den gelen işlenmiş veriyi alıp son HTTP yanıtını (string olarak) hazırlayan kişi olmalı.
+
+Görevleri:
+
+GET/POST/DELETE metodlarının mantıksal işleyişi.
+
+Static dosya servisi ve Autoindex (Dizin listeleme) özelliği.
+
+Hata sayfalarının yönetimi (Error Pages).
+
+Response Construction: Status code, content-length, content-type gibi headerları ekleyip paketi string haline getirip Network modülüne teslim etmek.
 Temel Mantık:
 İstenen path al → 
 Dosya var mı kontrol et → 
